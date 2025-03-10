@@ -1,0 +1,22 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: process-integration-platform
+  datasource:
+    url: jdbc:h2:mem:pip;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+camunda:
+  bpm:
+    admin-user:
+      id: admin
+      password: admin
+      firstName: Admin
+    history-level: full
+    job-execution:
+      enabled: true
+    auto-deployment-enabled: true
