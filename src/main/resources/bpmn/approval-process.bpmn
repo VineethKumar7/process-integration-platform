@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  id="Definitions_ApprovalProcess"
+                  targetNamespace="http://vineeth.dev/bpmn">
+    <bpmn:process id="ApprovalProcess" name="Approval Process" isExecutable="true" camunda:historyTimeToLive="30">
+        <bpmn:startEvent id="StartEvent_RequestReceived" name="Request received">
+            <bpmn:outgoing>Flow_1</bpmn:outgoing>
+        </bpmn:startEvent>
+
+        <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_RequestReceived" targetRef="Task_ValidateRequest"/>
+
+        <bpmn:serviceTask id="Task_ValidateRequest" name="Validate request"
+                          camunda:delegateExpression="${requestValidator}">
+            <bpmn:incoming>Flow_1</bpmn:incoming>
+            <bpmn:outgoing>Flow_2</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_ValidateRequest" targetRef="Gateway_AmountCheck"/>
+
+        <bpmn:exclusiveGateway id="Gateway_AmountCheck" name="Amount &gt; 5000?">
+            <bpmn:incoming>Flow_2</bpmn:incoming>
+            <bpmn:outgoing>Flow_HighAmount</bpmn:outgoing>
+            <bpmn:outgoing>Flow_LowAmount</bpmn:outgoing>
+        </bpmn:exclusiveGateway>
+
+        <bpmn:sequenceFlow id="Flow_HighAmount" sourceRef="Gateway_AmountCheck" targetRef="Task_ManagerReview">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"
+                                      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">${amount &gt; 5000}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+
+        <bpmn:sequenceFlow id="Flow_LowAmount" sourceRef="Gateway_AmountCheck" targetRef="Task_AutoApprove">
+            <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression"
+                                      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">${amount &lt;= 5000}</bpmn:conditionExpression>
+        </bpmn:sequenceFlow>
+
+        <bpmn:userTask id="Task_ManagerReview" name="Manager review"
+                       camunda:assignee="${managerId}">
+            <bpmn:incoming>Flow_HighAmount</bpmn:incoming>
+            <bpmn:outgoing>Flow_3</bpmn:outgoing>
+        </bpmn:userTask>
+
+        <bpmn:serviceTask id="Task_AutoApprove" name="Auto-approve"
+                          camunda:delegateExpression="${autoApprover}">
+            <bpmn:incoming>Flow_LowAmount</bpmn:incoming>
+            <bpmn:outgoing>Flow_4</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_ManagerReview" targetRef="Task_NotifyUpstream"/>
+        <bpmn:sequenceFlow id="Flow_4" sourceRef="Task_AutoApprove"   targetRef="Task_NotifyUpstream"/>
+
+        <bpmn:serviceTask id="Task_NotifyUpstream" name="Notify upstream"
+                          camunda:delegateExpression="${upstreamNotifier}">
+            <bpmn:incoming>Flow_3</bpmn:incoming>
+            <bpmn:incoming>Flow_4</bpmn:incoming>
+            <bpmn:outgoing>Flow_5</bpmn:outgoing>
+        </bpmn:serviceTask>
+
+        <bpmn:sequenceFlow id="Flow_5" sourceRef="Task_NotifyUpstream" targetRef="EndEvent_Done"/>
+
+        <bpmn:endEvent id="EndEvent_Done" name="Approval recorded">
+            <bpmn:incoming>Flow_5</bpmn:incoming>
+        </bpmn:endEvent>
+    </bpmn:process>
+</bpmn:definitions>
