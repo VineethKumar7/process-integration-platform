@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Approval xmlns="urn:partner:approval:v1">
+    <Header>
+        <Id>REQ-9001</Id>
+        <Submitter ManagerCode="MGR-23">vineeth</Submitter>
+    </Header>
+    <Lines>
+        <Line><Total>1499.50</Total></Line>
+        <Line><Total>500.00</Total></Line>
+    </Lines>
+    <Reason>Server replacement</Reason>
+</Approval>
