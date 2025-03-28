@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Process Integration Platform — operator console</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+    <h1>Approval submission</h1>
+    <p class="muted">A small operator console that fires a new <code>ApprovalProcess</code> instance.</p>
+
+    <form id="approvalForm">
+        <label>Request id <input name="requestId" required value="REQ-1001"></label>
+        <label>Requester <input name="requester" required value="vineeth"></label>
+        <label>Amount    <input name="amount"    required type="number" step="0.01" value="450"></label>
+        <label>Manager   <input name="managerId" value="MGR-23"></label>
+        <label>Reason    <input name="reason" value="Lab supplies"></label>
+        <button type="submit">Submit approval</button>
+    </form>
+
+    <pre id="output" hidden></pre>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
