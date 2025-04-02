@@ -1,5 +1,8 @@
 # Process Integration Platform
 
+[![CI](https://github.com/VineethKumar7/process-integration-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/VineethKumar7/process-integration-platform/actions/workflows/ci.yml)
+
+
 A small Spring Boot service that automates enterprise approval workflows
 using BPMN (Camunda 7), with an XSLT bridge for legacy partner XML formats
 and a thin JavaScript front-end for kicking off approvals.
