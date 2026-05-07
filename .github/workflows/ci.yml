@@ -18,18 +18,20 @@ jobs:
           java-version: '17'
           cache: maven
 
-      - name: Compile
-        run: mvn -B -q compile
+      - name: Compile main + test sources
+        run: mvn -B -ntp test-compile
 
-      - name: Unit tests
-        run: mvn -B -q test
+      - name: Unit tests (Surefire)
+        run: mvn -B -ntp test
 
-      - name: Integration tests (BPMN)
-        run: mvn -B -q -Dskip.unit=false verify
+      - name: BPMN integration tests (Failsafe)
+        run: mvn -B -ntp verify -DskipTests=false
 
-      - name: Upload Surefire reports on failure
+      - name: Upload Surefire/Failsafe reports on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: surefire-reports
-          path: target/surefire-reports
+          name: test-reports
+          path: |
+            target/surefire-reports
+            target/failsafe-reports

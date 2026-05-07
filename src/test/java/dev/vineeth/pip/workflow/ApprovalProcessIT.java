@@ -1,9 +1,9 @@
 package dev.vineeth.pip.workflow;
 
-import dev.vineeth.pip.api.ApprovalRequest;
-import dev.vineeth.pip.service.ApprovalService;
+import org.camunda.bpm.engine.HistoryService;
 import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.TaskService;
+import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.task.Task;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,70 +11,81 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
-import static org.camunda.bpm.engine.test.assertions.bpmn.BpmnAwareTests.*;
+import static org.camunda.bpm.engine.test.assertions.bpmn.BpmnAwareTests.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * End-to-end test of the ApprovalProcess BPMN.
+ * End-to-end test of the {@code ApprovalProcess} BPMN.
  *
- * Two scenarios are exercised here:
+ * Two scenarios:
  *   TC-PROC-200 — auto-approval path (amount ≤ 5000)
  *   TC-PROC-201 — manager-review path (amount &gt; 5000)
  *
- * Each scenario asserts the BPMN flow walked the expected activities and
- * ended at the same `EndEvent_Done`.  Regression descriptions for each
- * gateway are kept inline so a failing run reads like a structured bug
- * report rather than a stack trace.
+ * The process instance is started via {@link RuntimeService} directly so we
+ * can hold the {@link ProcessInstance} reference for {@code assertThat(pi)}
+ * — that overload works for both live and ended instances (camunda-bpm-assert
+ * pulls history when the instance has finished).
  */
 @SpringBootTest
 class ApprovalProcessIT {
 
-    @Autowired private ApprovalService approvalService;
     @Autowired private RuntimeService runtimeService;
     @Autowired private TaskService taskService;
+    @Autowired private HistoryService historyService;
 
     @Test
     @DisplayName("TC-PROC-200: amount=100 → auto-approved + ended")
     void autoApprovesSmallRequests() {
-        String pid = approvalService.submit(new ApprovalRequest(
-            "REQ-AUTO-1", "vineeth", new BigDecimal("100"), "MGR-1", "lab supplies"));
+        String requestId = "REQ-AUTO-" + UUID.randomUUID();
+        ProcessInstance pi = runtimeService.startProcessInstanceByKey(
+            "ApprovalProcess", requestId, vars(requestId, new BigDecimal("100")));
 
-        assertThat(processInstance(pid))
+        assertThat(pi)
             .hasPassed("Task_ValidateRequest", "Task_AutoApprove",
                        "Task_NotifyUpstream", "EndEvent_Done")
             .isEnded();
 
-        assertEquals("AUTO_APPROVED",
-            runtimeServiceVariable(pid, "decision"),
+        Object decision = historyService.createHistoricVariableInstanceQuery()
+            .processInstanceIdIn(pi.getProcessInstanceId())
+            .variableName("decision")
+            .singleResult()
+            .getValue();
+        assertEquals("AUTO_APPROVED", decision,
             "Auto-approval branch must persist decision=AUTO_APPROVED");
     }
 
     @Test
     @DisplayName("TC-PROC-201: amount=20000 → user task waits + completes to end")
     void routesLargeAmountsThroughManager() {
-        String pid = approvalService.submit(new ApprovalRequest(
-            "REQ-MGR-1", "vineeth", new BigDecimal("20000"), "MGR-7", "infra contract"));
+        String requestId = "REQ-MGR-" + UUID.randomUUID();
+        ProcessInstance pi = runtimeService.startProcessInstanceByKey(
+            "ApprovalProcess", requestId, vars(requestId, new BigDecimal("20000")));
 
-        assertThat(processInstance(pid))
+        assertThat(pi)
             .isWaitingAt("Task_ManagerReview")
             .task().hasName("Manager review");
 
         Task t = taskService.createTaskQuery()
-            .processInstanceId(pid)
+            .processInstanceId(pi.getProcessInstanceId())
             .singleResult();
         taskService.complete(t.getId());
 
-        assertThat(processInstance(pid))
+        assertThat(pi)
             .hasPassed("Task_ManagerReview", "Task_NotifyUpstream", "EndEvent_Done")
             .isEnded();
     }
 
-    private Object runtimeServiceVariable(String pid, String name) {
-        return runtimeService.createHistoricVariableInstanceQuery()
-            .processInstanceIdIn(pid)
-            .variableName(name)
-            .singleResult()
-            .getValue();
+    private static Map<String, Object> vars(String requestId, BigDecimal amount) {
+        Map<String, Object> vars = new HashMap<>();
+        vars.put("requestId", requestId);
+        vars.put("requester", "vineeth");
+        vars.put("amount",    amount);
+        vars.put("managerId", "MGR-1");
+        vars.put("reason",    "test");
+        return vars;
     }
 }
