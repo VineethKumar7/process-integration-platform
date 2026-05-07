@@ -50,14 +50,28 @@ public class LegacyXmlBridge {
             StringWriter out = new StringWriter();
             t.transform(new StreamSource(new StringReader(legacyXml)), new StreamResult(out));
 
-            JsonNode node = json.readTree(out.toString());
+            String body = out.toString().trim();
+            if (body.isEmpty()) {
+                throw new IllegalArgumentException(
+                    "Legacy XML did not match the expected partner schema — see test case TC-XSLT-001"
+                );
+            }
+            JsonNode node = json.readTree(body);
+            String requestId = node.path("requestId").asText("");
+            if (requestId.isBlank()) {
+                throw new IllegalArgumentException(
+                    "Legacy XML produced no requestId — see test case TC-XSLT-001"
+                );
+            }
             return new ApprovalRequest(
-                node.path("requestId").asText(),
-                node.path("requester").asText(),
+                requestId,
+                node.path("requester").asText(""),
                 new BigDecimal(node.path("amount").asText("0")),
                 node.path("managerId").asText(null),
                 node.path("reason").asText(null)
             );
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             throw new IllegalArgumentException(
                 "Legacy XML did not transform to a valid approval request — see test case TC-XSLT-001",
